@@ -3,3 +3,4 @@ build
 */tsp.js
 .vscode
 src/.vscode
+tsp_worker_react/src/wasm
