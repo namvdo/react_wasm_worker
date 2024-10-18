@@ -30,8 +30,21 @@ std::vector<Point> generateRandomPoints(int n) {
     return points;
 }
 
+// Function to convert a list of points to a JSON string
+std::string pointsToJson(const std::vector<Point>& points) {
+    std::string result = "[";
+    for (size_t i = 0; i < points.size(); ++i) {
+        result += "{\"x\":" + std::to_string(points[i].x) + ",\"y\":" + std::to_string(points[i].y) + "}";
+        if (i != points.size() - 1) {
+            result += ",";
+        }
+    }
+    result += "]";
+    return result;
+}
+
 // Function to solve the Traveling Salesman Problem using brute force
-std::vector<Point> tsp(const std::vector<Point>& points) {
+std::vector<Point> tsp(const std::vector<Point>& points, emscripten::val callback) {
     int n = points.size();
     std::vector<int> indices(n);
     for (int i = 0; i < n; ++i) {
@@ -51,6 +64,14 @@ std::vector<Point> tsp(const std::vector<Point>& points) {
         if (current_path_length < min_path_length) {
             min_path_length = current_path_length;
             best_order = indices;
+
+            // Call the callback with the improved path
+            std::vector<Point> ordered_points;
+            for (int idx : best_order) {
+                ordered_points.push_back(points[idx]);
+            }
+            std::string json_result = pointsToJson(ordered_points);
+            callback(json_result);
         }
     } while (std::next_permutation(indices.begin(), indices.end()));
 
@@ -63,21 +84,10 @@ std::vector<Point> tsp(const std::vector<Point>& points) {
 }
 
 // Function to run TSP and return the result as a JSON string
-std::string runTSP(int n) {
+std::string runTSP(int n, emscripten::val callback) {
     std::vector<Point> points = generateRandomPoints(n);
-    std::vector<Point> ordered_points = tsp(points);
-
-    // Manually serialize the result to JSON
-    std::string result = "[";
-    for (size_t i = 0; i < ordered_points.size(); ++i) {
-        result += "{\"x\":" + std::to_string(ordered_points[i].x) + ",\"y\":" + std::to_string(ordered_points[i].y) + "}";
-        if (i != ordered_points.size() - 1) {
-            result += ",";
-        }
-    }
-    result += "]";
-
-    return result;
+    std::vector<Point> ordered_points = tsp(points, callback);
+    return pointsToJson(ordered_points);
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {

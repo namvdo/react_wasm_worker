@@ -13,7 +13,11 @@ const TspVisualization = () => {
         if (event.data.action === 'tspResult') {
           setIsRunning(false);
           tspCanvasRef.current.style.backgroundColor = 'white';
-          drawTspPath(JSON.parse(event.data.result));
+          clearCanvas();
+          drawTspPath(JSON.parse(event.data.result), 'black');
+        } else if (event.data.action === 'interimTSP') {
+          clearCanvas();
+          drawTspPath(JSON.parse(event.data.result), 'red');
         }
       };
       return tspWorker;
@@ -27,10 +31,16 @@ const TspVisualization = () => {
     };
   }, []);
 
-  const drawTspPath = (points) => {
+  const clearCanvas = () => {
     const tspCanvas = tspCanvasRef.current;
     const tspCtx = tspCanvas.getContext('2d');
     tspCtx.clearRect(0, 0, tspCanvas.width, tspCanvas.height);
+  };
+
+  const drawTspPath = (points, color) => {
+    const tspCanvas = tspCanvasRef.current;
+    const tspCtx = tspCanvas.getContext('2d');
+    tspCtx.strokeStyle = color;
     tspCtx.beginPath();
     tspCtx.moveTo(points[0].x, points[0].y);
     for (let i = 1; i < points.length; i++) {
@@ -63,12 +73,12 @@ const TspVisualization = () => {
     <div>
       <canvas ref={tspCanvasRef} width={200} height={200} style={{ border: '1px solid black', backgroundColor: 'white' }}></canvas>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-        <label htmlFor="pointsSlider">Number of Points (2-12): </label>
+        <label htmlFor="pointsSlider">Number of Points (2-15): </label>
         <input
           type="range"
           id="pointsSlider"
           min="2"
-          max="12"
+          max="15"
           value={numPoints}
           onChange={(e) => setNumPoints(e.target.value)}
         />
