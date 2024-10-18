@@ -1,23 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
+import TspWorker from '../workers/tspWorker.js?worker';
 
 const TspVisualization = () => {
   const tspCanvasRef = useRef(null);
   const [worker, setWorker] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [numPoints, setNumPoints] = useState(12);
+  const [numPoints, setNumPoints] = useState(13);
+  const [pathLength, setPathLength] = useState(0);
 
   useEffect(() => {
     const createWorker = () => {
-      const tspWorker = new Worker(new URL('../workers/tspWorker.js', import.meta.url), { type: 'module' });
+      const tspWorker = new TspWorker();
       tspWorker.onmessage = (event) => {
         if (event.data.action === 'tspResult') {
           setIsRunning(false);
           tspCanvasRef.current.style.backgroundColor = 'white';
           clearCanvas();
-          drawTspPath(JSON.parse(event.data.result), 'black');
+          console.log(event.data.result);
+          const result = JSON.parse(event.data.result);
+          drawTspPath(result.points, 'black');
+          setPathLength(result.pathLength);
         } else if (event.data.action === 'interimTSP') {
           clearCanvas();
-          drawTspPath(JSON.parse(event.data.result), 'red');
+          console.log(event.data.result);
+          const result = JSON.parse(event.data.result);
+          setPathLength(result.pathLength);
+          drawTspPath(result.points, 'red');
         }
       };
       return tspWorker;
@@ -61,7 +69,7 @@ const TspVisualization = () => {
   const handleStopClick = () => {
     if (worker) {
       worker.terminate();
-      const newWorker = new Worker(new URL('../workers/tspWorker.js', import.meta.url), { type: 'module' });
+      const newWorker = new TspWorker();
       newWorker.onmessage = worker.onmessage;
       setWorker(newWorker);
       setIsRunning(false);
@@ -83,6 +91,7 @@ const TspVisualization = () => {
           onChange={(e) => setNumPoints(e.target.value)}
         />
         <div>Points: {numPoints}</div>
+        <div>Path Length: {pathLength.toFixed(2)}</div>
         <button onClick={handleRunClick} disabled={isRunning}>Run TSP</button>
         <button onClick={handleStopClick} disabled={!isRunning}>Stop TSP</button>
       </div>

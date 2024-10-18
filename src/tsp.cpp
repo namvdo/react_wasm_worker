@@ -30,16 +30,17 @@ std::vector<Point> generateRandomPoints(int n) {
     return points;
 }
 
-// Function to convert a list of points to a JSON string
-std::string pointsToJson(const std::vector<Point>& points) {
-    std::string result = "[";
+// Function to convert a list of points to a JSON string, including the path length
+std::string pointsToJson(const std::vector<Point>& points, double pathLength) {
+    std::string result = "{";
+    result += "\"points\": [";
     for (size_t i = 0; i < points.size(); ++i) {
         result += "{\"x\":" + std::to_string(points[i].x) + ",\"y\":" + std::to_string(points[i].y) + "}";
         if (i != points.size() - 1) {
             result += ",";
         }
     }
-    result += "]";
+    result += "], \"pathLength\": " + std::to_string(pathLength) + "}";
     return result;
 }
 
@@ -70,10 +71,10 @@ std::vector<Point> tsp(const std::vector<Point>& points, emscripten::val callbac
             for (int idx : best_order) {
                 ordered_points.push_back(points[idx]);
             }
-            std::string json_result = pointsToJson(ordered_points);
+            std::string json_result = pointsToJson(ordered_points, min_path_length);
             callback(json_result);
         }
-    } while (std::next_permutation(indices.begin(), indices.end()));
+    } while (std::next_permutation(indices.begin() + 1, indices.end())); // Fix first point to eliminate redundant permutations
 
     std::vector<Point> ordered_points;
     for (int idx : best_order) {
@@ -87,7 +88,12 @@ std::vector<Point> tsp(const std::vector<Point>& points, emscripten::val callbac
 std::string runTSP(int n, emscripten::val callback) {
     std::vector<Point> points = generateRandomPoints(n);
     std::vector<Point> ordered_points = tsp(points, callback);
-    return pointsToJson(ordered_points);
+    double path_length = 0;
+    for (size_t i = 0; i < ordered_points.size() - 1; ++i) {
+        path_length += distance(ordered_points[i], ordered_points[i + 1]);
+    }
+    path_length += distance(ordered_points.back(), ordered_points.front());
+    return pointsToJson(ordered_points, path_length);
 }
 
 EMSCRIPTEN_BINDINGS(my_module) {
