@@ -4,3 +4,4 @@ build
 .vscode
 src/.vscode
 tsp_worker_react/src/wasm
+.idea

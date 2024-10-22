@@ -10,43 +10,62 @@ export const FastaSearch = () => {
   const [ncdMatrix, setNcdMatrix] = useState([]);
   const [labels, setLabels] = useState([]);
   const [hasMatrix, setHasMatrix] = useState(false);
+  const [worker, setWorker] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+
+  const setSearchTermRemoveErr = (searchTerm) => {
+    setSearchTerm(searchTerm);
+    setErrorMsg('')
+  }
 
   useEffect(() => {
     runNCDWorker();
   }, []);
 
   const handleFastaData = (data) => {
-    setFastaData((prevFastaData) => [...prevFastaData, ...data]);
+    setFastaData(data);
+    const parsed = parseFasta(data);
+    worker.postMessage({
+      labels: parsed.labels,
+      contents: parsed.contents,
+    });
   };
 
-  const blob = new Blob([workerCode], { type: "application/javascript" });
-  const workerURL = URL.createObjectURL(blob);
-  const worker = new Worker(workerURL);
+
 
   const displayNcdMatrix = (response) => {
     const { labels, ncdMatrix } = response;
     setLabels(labels);
     setNcdMatrix(ncdMatrix);
     setHasMatrix(true);
+    setErrorMsg('')
   };
 
   const runNCDWorker = () => {
+    const blob = new Blob([workerCode], { type: "application/javascript" });
+    const workerURL = URL.createObjectURL(blob);
+    const worker = new Worker(workerURL);
     worker.onmessage = function (e) {
       const message = e.data;
       console.log("got message: " + JSON.stringify(message));
       if (message.type === "progress") {
         console.log("get process message: " + JSON.stringify(message));
       } else if (message.type === "result") {
-        console.log("message result: " + JSON.stringify(message));
+        console.log('let see the result now: ' + JSON.stringify(message));
+        if (!message || message.labels.length == 0 || message.ncdMatrix.length == 0) {
+          setErrorMsg("no result");
+          return;
+        }
         displayNcdMatrix(message);
       }
     };
+    setWorker(worker);
   };
 
   const parseFasta = (fastaData) => {
     const labels = [];
     const contents = [];
-    console.log("fasta data: PPPPP " + JSON.stringify(fastaData));
     const lines = fastaData.split("\n");
     let currentLabel = null;
     let currentSequence = "";
@@ -73,10 +92,8 @@ export const FastaSearch = () => {
   };
 
   const fetchFastaList = async (searchTerm) => {
+    
     console.log("Searching for: " + searchTerm);
-
-    if (!searchTerm) return;
-
     searchTerm =
       searchTerm.trim() + " AND mitochondrion[title] AND genome[title]";
 
@@ -98,6 +115,7 @@ export const FastaSearch = () => {
         (idNode) => idNode.textContent
       );
       if (idList.length === 0) {
+        setErrorMsg("no result");
         console.log("No IDs found for the search term.");
         return;
       }
@@ -112,26 +130,29 @@ export const FastaSearch = () => {
 
       const fastaData = await fetchResponse.text();
       setFastaData(fastaData);
-      setNcdMatrix([]);
-      setLabels([]);
-      setHasMatrix(false);
       return fastaData;
     } catch (error) {
       console.error("Fetch error: ", error);
     }
   };
 
-  const handleSearch = async (currentSearchTerm) => {
-    if (!currentSearchTerm) {
-      currentSearchTerm = searchTerm;
+  const handleSearch = async () => {
+    if (!searchTerm) {
+      setErrorMsg('The search input is empty');
+      return;
     }
-    console.log("search term now: " + currentSearchTerm);
-    const fastaList = await fetchFastaList(currentSearchTerm);
+    setErrorMsg('');
+    // if (!currentSearchTerm) {
+    //   currentSearchTerm = searchTerm;
+    // }
+    const fastaList = await fetchFastaList(searchTerm);
+    setNcdMatrix([]);
+    setLabels([]);
+    setHasMatrix(false);
+    setFastaData('');
+
     if (fastaList) {
       const parsedFastaList = parseFasta(fastaList);
-      console.log("post fasta raw to the worker: " + fastaData);
-      console.log("post fasta messags to the worker: " + parsedFastaList);
-
       if (parsedFastaList.labels.length > 0 && parsedFastaList.contents.length > 0) {
         worker.postMessage({
           labels: parsedFastaList.labels,
@@ -155,7 +176,7 @@ export const FastaSearch = () => {
           type="text"
           placeholder="Enter search terms, e.g. buffalo"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTermRemoveErr(e.target.value)}
           onKeyDown={handleKeyDown}
           style={{
             padding: "10px",
@@ -186,7 +207,7 @@ export const FastaSearch = () => {
           <option value="20">20</option>
         </select>
         <button
-          onClick={() => handleSearch(searchTerm)}
+          onClick={() => handleSearch()}
           style={{
             padding: "10px 20px",
             fontSize: "18px",
@@ -207,27 +228,21 @@ export const FastaSearch = () => {
       <div>
         <FileDrop onFastaData={handleFastaData} />
       </div>
-      <div
-        style={{
-          marginTop: "20px",
-          textAlign: "left",
-          whiteSpace: "pre-wrap",
-          maxHeight: "300px",
-          overflowY: "auto",
-          border: "1px solid #ccc",
-          borderRadius: "5px",
-          padding: "10px",
-        }}
-      >
-        <h2>FASTA Results:</h2>
-        <pre>{fastaData || "No results to display."}</pre>
-      </div>
-      <div style={{ marginTop: "20px", textAlign: "left" }}>
+
+      <div style={{ marginTop: "10px", textAlign: "left" }}>
         {hasMatrix && (
           <div style={{ overflowX: "auto", maxWidth: "100%" }}>
             <MatrixTable ncdMatrix={ncdMatrix} labels={labels} />
           </div>
-        )}
+        ) }
+        
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+            {errorMsg && errorMsg.includes("no result") &&
+              (<p style={{ fontSize: "18px" }}>
+                There is no result for <b><i>{searchTerm}</i></b>
+              </p>)
+            }
+          </div>
       </div>
     </div>
   );
