@@ -1,249 +1,219 @@
-import { useEffect, useState } from "react";
-import { workerCode } from "./ncdWorker";
-import { FileDrop } from "./FileDrop";
+import {useEffect, useState} from "react";
+import {workerCode} from "./ncdWorker";
+import {FileDrop} from "./FileDrop";
 import MatrixTable from "./MatrixTable";
+import {getFastaAccessionNumbersFromIds, getFastaIdsBySearchTerm, getFastaList, parseFasta} from "./getPublicFasta";
+import {
+    cacheAccession, cacheSearchTermAccessions, getCachedDataByAccession, getCachedDataBySearchTerm, initCache
+} from './cache.js'
 
 export const FastaSearch = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [fastaData, setFastaData] = useState("");
-  const [numItems, setNumItems] = useState(5);
-  const [ncdMatrix, setNcdMatrix] = useState([]);
-  const [labels, setLabels] = useState([]);
-  const [hasMatrix, setHasMatrix] = useState(false);
-  const [worker, setWorker] = useState(null);
-  const [errorMsg, setErrorMsg] = useState('');
+    const MAX_IDS_FETCH = 20;
+    const [searchTerm, setSearchTerm] = useState("");
+    const [numItems, setNumItems] = useState(5);
+    const [ncdMatrix, setNcdMatrix] = useState([]);
+    const [labels, setLabels] = useState([]);
+    const [hasMatrix, setHasMatrix] = useState(false);
+    const [worker, setWorker] = useState(null);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [confirmedSearchTerm, setConfirmedSearchTerm] = useState('');
+    const [executionTime, setExecutionTime] = useState(performance.now());
 
-
-  const setSearchTermRemoveErr = (searchTerm) => {
-    setSearchTerm(searchTerm);
-    setErrorMsg('')
-  }
-
-  useEffect(() => {
-    runNCDWorker();
-  }, []);
-
-  const handleFastaData = (data) => {
-    setFastaData(data);
-    const parsed = parseFasta(data);
-    worker.postMessage({
-      labels: parsed.labels,
-      contents: parsed.contents,
-    });
-  };
-
-
-
-  const displayNcdMatrix = (response) => {
-    const { labels, ncdMatrix } = response;
-    setLabels(labels);
-    setNcdMatrix(ncdMatrix);
-    setHasMatrix(true);
-    setErrorMsg('')
-  };
-
-  const runNCDWorker = () => {
-    const blob = new Blob([workerCode], { type: "application/javascript" });
-    const workerURL = URL.createObjectURL(blob);
-    const worker = new Worker(workerURL);
-    worker.onmessage = function (e) {
-      const message = e.data;
-      console.log("got message: " + JSON.stringify(message));
-      if (message.type === "progress") {
-        console.log("get process message: " + JSON.stringify(message));
-      } else if (message.type === "result") {
-        console.log('let see the result now: ' + JSON.stringify(message));
-        if (!message || message.labels.length == 0 || message.ncdMatrix.length == 0) {
-          setErrorMsg("no result");
-          return;
-        }
-        displayNcdMatrix(message);
-      }
-    };
-    setWorker(worker);
-  };
-
-  const parseFasta = (fastaData) => {
-    const labels = [];
-    const contents = [];
-    const lines = fastaData.split("\n");
-    let currentLabel = null;
-    let currentSequence = "";
-
-    lines.forEach((line) => {
-      if (line.startsWith(">")) {
-        if (currentLabel && currentSequence) {
-          labels.push(currentLabel);
-          contents.push(currentSequence);
-        }
-        currentSequence = "";
-        const header = line.substring(1);
-        const labelMatch = header.match(/^(\S+)/);
-        currentLabel = labelMatch ? labelMatch[1] : "Unknown";
-      } else {
-        currentSequence += line.trim();
-      }
-    });
-    if (currentLabel && currentSequence) {
-      labels.push(currentLabel);
-      contents.push(currentSequence);
+    const setSearchTermRemoveErr = (searchTerm) => {
+        setSearchTerm(searchTerm);
+        setErrorMsg('')
     }
-    return { labels, contents };
-  };
 
-  const fetchFastaList = async (searchTerm) => {
-    
-    console.log("Searching for: " + searchTerm);
-    searchTerm =
-      searchTerm.trim() + " AND mitochondrion[title] AND genome[title]";
+    useEffect(() => {
+        initCache();
+        runNCDWorker();
+    }, []);
 
-    const ID_LIST_URI = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=${encodeURIComponent(
-      searchTerm
-    )}&retmode=text&rettype=fasta&retmax=${numItems}`;
-
-    try {
-      const searchResponse = await fetch(ID_LIST_URI);
-      if (!searchResponse.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const searchResult = await searchResponse.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(searchResult, "text/xml");
-
-      const idList = Array.from(xmlDoc.getElementsByTagName("Id")).map(
-        (idNode) => idNode.textContent
-      );
-      if (idList.length === 0) {
-        setErrorMsg("no result");
-        console.log("No IDs found for the search term.");
-        return;
-      }
-
-      const ids = idList.join(",");
-      const FETCH_URI = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${ids}&rettype=fasta&retmode=text`;
-
-      const fetchResponse = await fetch(FETCH_URI);
-      if (!fetchResponse.ok) {
-        throw new Error("Network response was not ok");
-      }
-
-      const fastaData = await fetchResponse.text();
-      setFastaData(fastaData);
-      return fastaData;
-    } catch (error) {
-      console.error("Fetch error: ", error);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchTerm) {
-      setErrorMsg('The search input is empty');
-      return;
-    }
-    setErrorMsg('');
-    // if (!currentSearchTerm) {
-    //   currentSearchTerm = searchTerm;
-    // }
-    const fastaList = await fetchFastaList(searchTerm);
-    setNcdMatrix([]);
-    setLabels([]);
-    setHasMatrix(false);
-    setFastaData('');
-
-    if (fastaList) {
-      const parsedFastaList = parseFasta(fastaList);
-      if (parsedFastaList.labels.length > 0 && parsedFastaList.contents.length > 0) {
+    const handleFastaData = (data) => {
+        const parsed = parseFasta(data);
         worker.postMessage({
-          labels: parsedFastaList.labels,
-          contents: parsedFastaList.contents,
+            labels: parsed.labels, contents: parsed.contents,
         });
-      }
-    }
-  };
+    };
 
-  const handleKeyDown = async (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
+    const displayNcdMatrix = (response) => {
+        const {labels, ncdMatrix} = response;
+        setLabels(labels);
+        setNcdMatrix(ncdMatrix);
+        setHasMatrix(true);
+        setErrorMsg('')
+    };
 
-  return (
-    <div style={{ margin: "20px", textAlign: "center" }}>
-      <h1 style={{ marginBottom: "20px" }}>NCD Calculator</h1>
-      <div>
-        <input
-          type="text"
-          placeholder="Enter search terms, e.g. buffalo"
-          value={searchTerm}
-          onChange={(e) => setSearchTermRemoveErr(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{
-            padding: "10px",
-            width: "300px",
-            fontSize: "18px",
-            border: "2px solid #4CAF50",
-            borderRadius: "5px",
-            outline: "none",
-            transition: "border-color 0.3s",
-          }}
-          onFocus={(e) => (e.target.style.borderColor = "#66bb6a")}
-          onBlur={(e) => (e.target.style.borderColor = "#4CAF50")}
-        />
-        <select
-          value={numItems}
-          onChange={(e) => setNumItems(e.target.value)}
-          style={{
-            padding: "10px",
-            marginLeft: "10px",
-            fontSize: "18px",
-            border: "2px solid #4CAF50",
-            borderRadius: "5px",
-          }}
-        >
-          <option value="5">5</option>
-          <option value="10">10</option>
-          <option value="15">15</option>
-          <option value="20">20</option>
-        </select>
-        <button
-          onClick={() => handleSearch()}
-          style={{
-            padding: "10px 20px",
-            fontSize: "18px",
-            marginLeft: "10px",
-            backgroundColor: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-            transition: "background-color 0.3s",
-          }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = "#45a049")}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = "#4CAF50")}
-        >
-          Search
-        </button>
-      </div>
-      <div>
-        <FileDrop onFastaData={handleFastaData} />
-      </div>
-
-      <div style={{ marginTop: "10px", textAlign: "left" }}>
-        {hasMatrix && (
-          <div style={{ overflowX: "auto", maxWidth: "100%" }}>
-            <MatrixTable ncdMatrix={ncdMatrix} labels={labels} />
-          </div>
-        ) }
-        
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-            {errorMsg && errorMsg.includes("no result") &&
-              (<p style={{ fontSize: "18px" }}>
-                There is no result for <b><i>{searchTerm}</i></b>
-              </p>)
+    const runNCDWorker = () => {
+        const blob = new Blob([workerCode], {type: "application/javascript"});
+        const workerURL = URL.createObjectURL(blob);
+        const worker = new Worker(workerURL);
+        worker.onmessage = function (e) {
+            const message = e.data;
+            if (message.type === "progress") {
+            } else if (message.type === "result") {
+                if (!message || message.labels.length === 0 || message.ncdMatrix.length === 0) {
+                    setErrorMsg("no result");
+                    resetDisplay();
+                } else {
+                    displayNcdMatrix(message);
+                }
+                setExecutionTime((prev) => {
+                    return performance.now() - prev;
+                })
             }
-          </div>
-      </div>
-    </div>
-  );
+        };
+        setWorker(worker);
+    };
+
+
+    const performSearch = async () => {
+        if (!searchTerm) {
+            setErrorMsg('The search input is empty');
+            return;
+        }
+        setExecutionTime(performance.now());
+        let searchTermCache = getCachedDataBySearchTerm(searchTerm);
+        if (!searchTermCache || searchTermCache.length === 0) {
+            console.log('Cache miss for search term: ' + searchTerm);
+            let ids = await getFastaIdsBySearchTerm(searchTerm, MAX_IDS_FETCH);
+            if (ids && ids.length !== 0) {
+                let accessions = (await getFastaAccessionNumbersFromIds(ids)).filter(accession => accession != null);
+                ids = ids.slice(0, numItems); // here we will only fetch the top `numItems` elements, the rest will be fetched on the next call
+                if (accessions && accessions.length !== 0) {
+                    cacheSearchTermAccessions(searchTerm, accessions);
+                }
+                let list = await getFastaList(ids);
+                if (list && list !== '') {
+                    let parsed = parseFasta(list);
+                    worker.postMessage({
+                        labels: parsed.labels, contents: parsed.contents,
+                    });
+                    await cacheAccession(parsed);
+                    resetDisplay();
+                }
+            } else {
+                setErrorMsg("no result");
+                setNcdMatrix([]);
+                setLabels([]);
+                setHasMatrix(false);
+                return;
+            }
+        } else {
+            let notCachedAccessions = [];
+            const data = {labels: [], contents: []};
+            for (let i = 0; i < searchTermCache.length; i++) {
+                let accession = searchTermCache[i];
+                let sequence = getCachedDataByAccession(accession);
+                if (data.contents.length < numItems) {
+                    data.labels = [...data.labels, accession];
+                    data.contents = [...data.contents, sequence]
+                }
+                notCachedAccessions.push(accession);
+            }
+            cacheNoContentAccessions(notCachedAccessions);
+            console.log('Cache hit for term: ' + searchTerm + ', existing accessions: ' + searchTermCache);
+            console.log('Fetch no content accessions: ' + notCachedAccessions);
+            worker.postMessage(data);
+        }
+        setConfirmedSearchTerm(searchTerm);
+    }
+
+    const cacheNoContentAccessions = async (notCachedAccessions) => {
+        if (!notCachedAccessions || notCachedAccessions.length === 0) return;
+        let fastaList = await getFastaList(notCachedAccessions);
+        console.log(notCachedAccessions);
+        cacheSearchTermAccessions(searchTerm, notCachedAccessions);
+        const parsedList = parseFasta(fastaList);
+        await cacheAccession(parsedList);
+    }
+
+    const resetDisplay = () => {
+        setErrorMsg('');
+        setNcdMatrix([]);
+        setLabels([]);
+        setHasMatrix(false);
+    }
+
+    const handleKeyDown = async (e) => {
+        if (e.key === "Enter") {
+            await performSearch();
+        }
+    };
+
+    return (<div style={{margin: "20px", textAlign: "center"}}>
+        <h1 style={{marginBottom: "20px"}}>NCD Calculator</h1>
+        <div>
+            <input
+                type="text"
+                placeholder="Enter search terms, e.g. buffalo"
+                value={searchTerm}
+                onChange={(e) => setSearchTermRemoveErr(e.target.value)}
+                onKeyDown={handleKeyDown}
+                style={{
+                    padding: "10px",
+                    width: "300px",
+                    fontSize: "18px",
+                    border: "2px solid #4CAF50",
+                    borderRadius: "5px",
+                    outline: "none",
+                    transition: "border-color 0.3s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#66bb6a")}
+                onBlur={(e) => (e.target.style.borderColor = "#4CAF50")}
+            />
+            <select
+                value={numItems}
+                onChange={(e) => setNumItems(parseInt(e.target.value))}
+                style={{
+                    padding: "10px",
+                    marginLeft: "10px",
+                    fontSize: "18px",
+                    border: "2px solid #4CAF50",
+                    borderRadius: "5px",
+                }}
+            >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="20">20</option>
+            </select>
+            <button
+                onClick={() => performSearch()}
+                style={{
+                    padding: "10px 20px",
+                    fontSize: "18px",
+                    marginLeft: "10px",
+                    backgroundColor: "#4CAF50",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "5px",
+                    cursor: "pointer",
+                    transition: "background-color 0.3s",
+                }}
+                onMouseEnter={(e) => (e.target.style.backgroundColor = "#45a049")}
+                onMouseLeave={(e) => (e.target.style.backgroundColor = "#4CAF50")}
+            >
+                Search
+            </button>
+        </div>
+        <div>
+            <FileDrop onFastaData={handleFastaData}/>
+        </div>
+
+        <div style={{marginTop: "10px", textAlign: "left"}}>
+            {hasMatrix && (<div style={{overflowX: "auto", maxWidth: "100%"}}>
+                <p style={{fontSize: "18px"}}>
+                    NCD matrix for <b><i>{confirmedSearchTerm}</i></b> (total time: {executionTime.toFixed(2)}ms)
+                </p>
+                <MatrixTable ncdMatrix={ncdMatrix} labels={labels}/>
+            </div>)}
+
+            <div style={{display: "flex", justifyContent: "center", alignItems: "center"}}>
+                {errorMsg && errorMsg.includes("no result") && (<p style={{fontSize: "18px"}}>
+                    There is no result for <b><i>{searchTerm}</i></b>
+                </p>)}
+            </div>
+        </div>
+    </div>);
 };

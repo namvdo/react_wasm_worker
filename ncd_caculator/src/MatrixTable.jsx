@@ -1,7 +1,6 @@
 import React from "react";
 
 const MatrixTable = ({ ncdMatrix, labels }) => {
-  console.log('ncdMatrix: ' + JSON.stringify(ncdMatrix));
   return (
     <table style={{ borderCollapse: "collapse", margin: "20px auto", width: "80%", maxWidth: "600px", overflowX: "auto" }}>
       <thead>
