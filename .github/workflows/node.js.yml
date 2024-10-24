@@ -24,14 +24,17 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
 
+    - name: Check ncd_calculator Directory
+      run: ls -la .
+      
     - name: Install Dependencies
       run: npm ci
-      working-directory: ncd_calculator  # Ensure this points to your project folder
+      working-directory: ./ncd_calculator  # Ensure this points to your project folder
 
     - name: Build Project
       run: npm run build --if-present
-      working-directory: ncd_calculator
+      working-directory: ./ncd_calculator
 
     - name: Run Tests
       run: npm test
-      working-directory: ncd_calculator
+      working-directory: ./ncd_calculator
