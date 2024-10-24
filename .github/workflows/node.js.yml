@@ -30,8 +30,10 @@ jobs:
       
     - name: Install Dependencies
       run: npm ci
+      working-directory: ncd_calculator
     - name: Build Project
       run: npm run build --if-present
-
+      working-directory: ncd_calculator
     - name: Run Tests
       run: npm test
+      working-directory: ncd_calculator
