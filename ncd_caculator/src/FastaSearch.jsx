@@ -75,6 +75,7 @@ export const FastaSearch = () => {
         setExecutionTime(performance.now());
         let searchTermCache = getCachedDataBySearchTerm(searchTerm);
         if (!searchTermCache || searchTermCache.length === 0) {
+            resetDisplay();
             console.log('Cache miss for search term: ' + searchTerm);
             let ids = await getFastaIdsBySearchTerm(searchTerm, MAX_IDS_FETCH);
             if (ids && ids.length !== 0) {
@@ -90,7 +91,6 @@ export const FastaSearch = () => {
                         labels: parsed.labels, contents: parsed.contents,
                     });
                     await cacheAccession(parsed);
-                    resetDisplay();
                 }
             } else {
                 setErrorMsg("no result");

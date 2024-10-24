@@ -1,3 +1,5 @@
+import {parseAccessionNumber} from "./cache.js";
+
 export const getFastaList = async (idList) => {
     const FETCH_URI = await getFastaListUri(idList) ;
     return await getApiResponse(FETCH_URI);
@@ -11,7 +13,7 @@ export const getFastaListUri = async (idList) => {
 }
 
 export const getFastaAccessionNumbersFromIdsUri = (idList) => {
-    if (typeof idList === 'string') {
+    if (typeof idList !== 'string') {
         idList = idList.join(",");
     }
     return encodeURI(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=${idList}&rettype=acc`);
@@ -59,7 +61,7 @@ export const getFastaIdsBySearchTerm = async (searchTerm, numItems) => {
 export const parseFasta = (fastaData) => {
     const labels = [];
     const contents = [];
-    const lines = fastaData.split("\n");
+    const lines = fastaData.split("\n").map(line => line.toLowerCase());
     let currentLabel = null;
     let currentSequence = "";
 
@@ -72,7 +74,7 @@ export const parseFasta = (fastaData) => {
             currentSequence = "";
             const header = line.substring(1);
             const labelMatch = header.match(/^(\S+)/);
-            currentLabel = labelMatch ? labelMatch[1] : "Unknown";
+            currentLabel = labelMatch ? parseAccessionNumber(labelMatch[1]) : "unknown";
         } else {
             currentSequence += line.trim();
         }

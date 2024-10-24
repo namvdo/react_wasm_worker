@@ -51,7 +51,7 @@ export const cacheAccessionSequence = async (accession, sequence) => {
 
 export const cacheAccession = async (parsedFastaList) => {
     const { labels, contents } = parsedFastaList;
-    let accessions = labels.map(label => parseAccessionNumber(label));
+    let accessions = labels.map(parseAccessionNumber);
     accessions = filterEmptyAccessions(accessions);
     for(let i = 0; i < accessions.length; i++) {
         await cacheAccessionSequence(accessions[i], contents[i]);
@@ -59,7 +59,7 @@ export const cacheAccession = async (parsedFastaList) => {
 }
 
 export const cacheSearchTermAccessions = (searchTerm, accessions) => {
-    accessions = filterEmptyAccessions(accessions);
+    accessions = filterEmptyAccessions(accessions).map(parseAccessionNumber);
     const term = searchTerm.trim().toLowerCase();
     const cache = localStorage.getItem(SEARCH_TERM_CACHE_ID);
     const searchTermCache = JSON.parse(cache);
@@ -85,5 +85,5 @@ export const parseAccessionNumber = label => {
     if (!label || label === '') {
         return null;
     }
-    return label.split(".")[0].trim();
+    return label.split(".")[0].trim().toLowerCase();
 }

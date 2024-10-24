@@ -15,7 +15,7 @@ const MatrixTable = ({ ncdMatrix, labels }) => {
           <th style={{ padding: "10px", border: "1px solid #ccc" }}>{ ncdMatrix.length + "x" + ncdMatrix.length}</th>
           {labels.map((label, index) => (
             <th key={index} style={{ padding: "10px", border: "1px solid #ccc" }}>
-              {label}
+              {label.toUpperCase()}
             </th>
           ))}
         </tr>
@@ -24,7 +24,7 @@ const MatrixTable = ({ ncdMatrix, labels }) => {
         {ncdMatrix.map((row, rowIndex) => (
           <tr key={rowIndex}>
             <th style={{ padding: "10px", border: "1px solid #ccc" }}>
-              {labels[rowIndex]}
+              {labels[rowIndex].toUpperCase()}
             </th>
             {row.map((value, colIndex) => (
               <td
