@@ -26,7 +26,7 @@ jobs:
     - name: Check ncd_calculator Directory
       run: ls -la .
     - name: Change to ncd_calculator
-      run: cd ncd_calculato
+      run: cd ncd_calculator
       
     - name: Install Dependencies
       run: npm ci
