@@ -1,0 +1,11 @@
+{
+  "name": "react_wasm_worker",
+  "version": "1.0.0",
+  "description": "Demonstrations of Emscripten generated WebAssembly and a web worker. In the single threaded version (tsp_single_thread), running a computationally intensive WASM blocks the JavaScript main thread and stops interaction on the page. With the web worker version (tsp_worker_DOM), work happens in the background and interaction can continue unblocked. The traveling salesman problem (TSP) is used as a sample computationally intensive task.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
