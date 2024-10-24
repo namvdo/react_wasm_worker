@@ -1,6 +1,13 @@
 import React from "react";
 
 const MatrixTable = ({ ncdMatrix, labels }) => {
+  const getCellStyle = (value) => {
+    const red = Math.round(255 * value);
+    const green = Math.round(255 * (1 - value));
+    const color = `rgba(${red}, ${green}, 0, 1)`;
+    return { color };
+  }
+
   return (
     <table style={{ borderCollapse: "collapse", margin: "20px auto", width: "80%", maxWidth: "600px", overflowX: "auto" }}>
       <thead>
@@ -20,9 +27,17 @@ const MatrixTable = ({ ncdMatrix, labels }) => {
               {labels[rowIndex]}
             </th>
             {row.map((value, colIndex) => (
-              <td key={colIndex} style={{ padding: "10px", border: "1px solid #ccc" }}>
-                {value.toFixed(4)} {/* Display value with 4 decimal places */}
-              </td>
+              <td
+              key={colIndex}
+              style={{
+                padding: "10px",
+                border: "1px solid #ccc",
+                textAlign: "center",
+                ...getCellStyle(value), 
+              }}
+            >
+              {value.toFixed(4)} 
+            </td>
             ))}
           </tr>
         ))}
