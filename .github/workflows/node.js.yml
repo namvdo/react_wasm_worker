@@ -1,0 +1,37 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set Up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm ci
+      working-directory: ncd_calculator  # Ensure this points to your project folder
+
+    - name: Build Project
+      run: npm run build --if-present
+      working-directory: ncd_calculator
+
+    - name: Run Tests
+      run: npm test
+      working-directory: ncd_calculator
