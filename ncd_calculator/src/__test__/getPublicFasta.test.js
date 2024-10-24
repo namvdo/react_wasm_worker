@@ -67,7 +67,15 @@ test('test fetch fasta list from search term', async () => {
 const arraysEqual = (a, b) => {
     let setA = new Set(a);
     let setB = new Set(b);
-    return setA.difference(setB).keys().length === 0;
+    if (setA.size !== setB.size) {
+        return false;
+    }
+    for (let item of setA) {
+        if (!setB.has(item)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 const delay = (ms) => {
