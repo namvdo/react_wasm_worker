@@ -100,33 +100,38 @@ export const FastaSearch = () => {
                 return;
             }
         } else {
-            let notCachedAccessions = [];
             const data = {labels: [], contents: []};
             for (let i = 0; i < searchTermCache.length; i++) {
                 let accession = searchTermCache[i];
                 let sequence = getCachedDataByAccession(accession);
-                if (data.contents.length < numItems) {
-                    data.labels = [...data.labels, accession];
-                    data.contents = [...data.contents, sequence]
+                if (!sequence || sequence === '') {
+                    let accessions = searchTermCache.slice(i);
+                    let fastaList = await getFastaList(accessions);
+                    let parsed = parseFasta(fastaList);
+                    let all = {
+                        contents: [...data.contents, ...parsed.contents],
+                        labels: [...data.labels, ...parsed.labels]
+                    }
+                    let len = data.labels.length;
+                    for(let j = 0; j < numItems - len; j++) {
+                        data.labels.push(parsed.labels[j]);
+                        data.contents.push(parsed.contents[j]);
+                    }
+                    await cacheAccession(all);
+                    break;
+                } else {
+                    if (data.contents.length < numItems) {
+                        data.labels = [...data.labels, accession];
+                        data.contents = [...data.contents, sequence]
+                    }
                 }
-                notCachedAccessions.push(accession);
             }
-            cacheNoContentAccessions(notCachedAccessions);
             console.log('Cache hit for term: ' + searchTerm + ', existing accessions: ' + searchTermCache);
-            console.log('Fetch no content accessions: ' + notCachedAccessions);
             worker.postMessage(data);
         }
         setConfirmedSearchTerm(searchTerm);
     }
 
-    const cacheNoContentAccessions = async (notCachedAccessions) => {
-        if (!notCachedAccessions || notCachedAccessions.length === 0) return;
-        let fastaList = await getFastaList(notCachedAccessions);
-        console.log(notCachedAccessions);
-        cacheSearchTermAccessions(searchTerm, notCachedAccessions);
-        const parsedList = parseFasta(fastaList);
-        await cacheAccession(parsedList);
-    }
 
     const resetDisplay = () => {
         setErrorMsg('');
