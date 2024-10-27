@@ -7,11 +7,11 @@ import {
     getFastaList,
     getFastaListUri,
     parseFasta
-} from "../getPublicFasta.js";
+} from "../functions/getPublicFasta.js";
 import {Parser} from "xml2js"
 import {readFileSync, writeFile} from "fs";
 
-import {parseAccessionNumber} from "../cache.js";
+import {parseAccessionNumber} from "../functions/cache.js";
 import {join} from "node:path";
 import * as path from "node:path";
 

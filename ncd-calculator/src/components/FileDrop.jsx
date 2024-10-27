@@ -27,24 +27,6 @@ export const FileDrop = ({ onFastaData }) => {
     [onFastaData]
   );
 
-
-  // const parseSingle = (content) => {
-  //   const lines = content.split("\n");
-  //   let sequence = "";
-  //   let label = "";
-  //   lines.forEach((line) => {
-  //     if (line.startsWith(">")) {
-  //       const header = line.substring(1);
-  //       const labelMatch = header.match(/^(\S+)/);
-  //       label = labelMatch ? labelMatch[1] : "Unknown";
-  //     } else {
-  //       sequence += line.trim();
-  //     }
-  //   });
-  //   return {'label': label, 'sequence': sequence};
-
-  // }
-
   const handleDragOver = (event) => {
     event.preventDefault();
   };

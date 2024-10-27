@@ -1,5 +1,5 @@
 import './App.css'
-import { FastaSearch } from './FastaSearch'
+import { FastaSearch } from './components/FastaSearch.jsx'
 
 function App() {
   return (
